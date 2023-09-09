@@ -1,0 +1,100 @@
+import React, { useEffect, useState } from 'react';
+import { VictoryChart, VictoryLine, VictoryAxis, VictoryTooltip, VictoryLegend, VictoryLabel } from 'victory';
+
+const App = () => {
+  const [handshakeMetrics, setHandshakeMetrics] = useState([]);
+  const [connectionMetrics, setConnectionMetrics] = useState([]);
+  const [protocolsReceivedMetrics, setProtocolsReceivedMetrics] = useState([]);
+  const proxyURL = 'http://localhost:4000/metrics';
+
+  useEffect(() => {
+    fetch(proxyURL)
+      .then((response) => response.text())
+      .then((data) => {
+        const lines = data.split('\n');
+        const handshakeMetricsData = [];
+        const connectionMetricsData = [];
+        const protocolsReceivedMetricsData = [];
+
+        lines.forEach((line) => {
+          if (line.startsWith('libp2p_swarm_handshake_latency_seconds_bucket')) {
+            const leMatch = /le="([\d.]+)"/.exec(line);
+            const value = parseFloat(line.split(' ')[1]);
+
+            if (leMatch && !isNaN(value)) {
+              const le = parseFloat(leMatch[1]);
+              handshakeMetricsData.push({ le, value });
+            }
+          } else if (line.startsWith('libp2p_swarm_connection_duration_seconds_bucket')) {
+            const leMatch = /le="([\d.]+)"/.exec(line);
+            const value = parseFloat(line.split(' ')[1]);
+
+            if (leMatch && !isNaN(value)) {
+              const le = parseFloat(leMatch[1]);
+              connectionMetricsData.push({ le, value });
+            }
+          } else if (line.startsWith('libp2p_identify_protocols_received_bucket')) {
+            const leMatch = /le="([\d.]+)"/.exec(line);
+            const value = parseFloat(line.split(' ')[1]);
+
+            if (leMatch && !isNaN(value)) {
+              const le = parseFloat(leMatch[1]);
+              protocolsReceivedMetricsData.push({ le, value });
+            }
+          }
+        });
+
+        setHandshakeMetrics(handshakeMetricsData);
+        setConnectionMetrics(connectionMetricsData);
+        setProtocolsReceivedMetrics(protocolsReceivedMetricsData);
+      })
+      .catch((error) => {
+        console.error('Error fetching Prometheus metrics:', error);
+      });
+  }, []);
+
+  return (
+    <div>
+      <h2>Handshake Metrics</h2>
+      <VictoryChart width={800} height={400}>
+        <VictoryAxis />
+        <VictoryAxis dependentAxis />
+        <VictoryLine
+          data={handshakeMetrics}
+          x="le"
+          y="value"
+          labels={({ datum }) => `le: ${datum.le}, value: ${datum.value}`}
+          labelComponent={<VictoryTooltip />}
+        />
+      </VictoryChart>
+
+      <h2>Connection Duration Metrics</h2>
+      <VictoryChart width={800} height={400}>
+        <VictoryAxis />
+        <VictoryAxis dependentAxis />
+        <VictoryLine
+          data={connectionMetrics}
+          x="le"
+          y="value"
+          labels={({ datum }) => `le: ${datum.le}, value: ${datum.value}`}
+          labelComponent={<VictoryTooltip />}
+        />
+      </VictoryChart>
+
+      <h2>Protocols Received Metrics</h2>
+      <VictoryChart width={800} height={400}>
+        <VictoryAxis />
+        <VictoryAxis dependentAxis />
+        <VictoryLine
+          data={protocolsReceivedMetrics}
+          x="le"
+          y="value"
+          labels={({ datum }) => `le: ${datum.le}, value: ${datum.value}`}
+          labelComponent={<VictoryTooltip />}
+        />
+      </VictoryChart>
+    </div>
+  );
+};
+
+export default App;
